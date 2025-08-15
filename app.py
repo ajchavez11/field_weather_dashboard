@@ -8,6 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+THRESHOLDS = {
+    'high_temp': 20.0,
+    'low_temp': -0.0,
+    'high_wind': 10.0,
+    'high_precip': 5.0
+}
+
 load_dotenv()
 api_key = os.getenv("API_KEY", 'Missing_Key')
 
@@ -33,6 +40,8 @@ if fetch_button:
         }
 
         cache_path = 'data/cache.json'
+
+        os.remove(cache_path)
         if os.path.exists(cache_path):
             with open(cache_path, 'r') as f:
                 data = json.load(f)
@@ -61,13 +70,39 @@ if fetch_button:
         df['precip'].fillna(0, inplace=True)
         avg_temp = np.mean(df['temp'])
         st.dataframe(df[['date', 'temp', 'wind_speed', 'precip', 'wind_chill']])
-        st.write(f'Average Temperature: {avg_temp: .2f}')
+        st.write(f'Average Temperature: {avg_temp: .2f} C')
 
+        # Weather Alerts
+        alerts = []
+        if (df['temp'] > THRESHOLDS['high_temp']).any():
+            alerts.append(f'High Temperature: {df['temp'].max():.2f}')
+        if (df['temp'] < THRESHOLDS['low_temp']).any():
+            alerts.append(f'Low Temperature: {df['temp'].min():.2f}')
+        if (df['precip'] > THRESHOLDS['high_precip']).any():
+            alerts.append(f'High Precipitation: {df['precip'].max():.2f} mm')
+        if (df['wind_speed'] > THRESHOLDS['high_wind']).any():
+            alerts.append(f'High Wind Speed: {df["wind_speed"].max():.2f} m/s')
+        if alerts:
+            for alert in alerts:
+                if 'High Temperature' in alert or 'High Precipitation' in alert:
+                    st.error(alert)
+                else:
+                    st.warning(alert)
+        else:
+            st.success("No extreme weather conditions.")
+        with open('data/alerts.txt', 'w') as f:
+            if alerts:
+                f.write('\n'.join(alerts))
+            else:
+                f.write('No alerts found.')
+
+
+        # descriptive graphs displaying various data (usually Time and Date vs *variable*)
         plt.figure(figsize=(10,6))
-        sns.lineplot(x='date', y='temp', data=df, label='Temperature (F)')
-        sns.lineplot(x='date', y='wind_chill', data=df, label='Wind Chill (F)')
+        sns.lineplot(x='date', y='temp', data=df, label='Temperature (C)')
+        sns.lineplot(x='date', y='wind_chill', data=df, label='Wind Chill (C)')
         plt.xlabel('Date')
-        plt.ylabel('Temperature (F)')
+        plt.ylabel('Temperature (C)')
         plt.title('3-Day Temperature vs. Wind Chill')
         plt.legend()
         plt.xticks(rotation=45)
@@ -90,5 +125,7 @@ if fetch_button:
 
     except ValueError:
         st.error('Please enter a valid latitude and longitude.')
+    except Exception as e:
+        st.error(f'Unexpected error: {str(e)}')
 
 
