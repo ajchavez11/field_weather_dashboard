@@ -5,6 +5,8 @@ import requests as r
 import json
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 load_dotenv()
 api_key = os.getenv("API_KEY", 'Missing_Key')
@@ -49,17 +51,41 @@ if fetch_button:
         df = pd.DataFrame(forecast_list)
         df['temp'] = df['main'].apply(lambda x: x['temp'] )
         df['wind_speed'] = df['wind'].apply(lambda x: x['speed'])
-        df['precip'] = df['main'].apply(lambda x: x.get('3h', 0) if isinstance(x, dict) else 0)
+        df['precip'] = df['rain'].apply(lambda x: x.get('3h', 0) if isinstance(x, dict) else 0)
         df['date'] = pd.to_datetime(df['dt'], unit='s')
         df = df.drop(columns=['main', 'wind', 'rain', 'weather', 'clouds'], errors='ignore')
         start_date = df['date'].min()
         end_date = start_date + pd.Timedelta(days=3)
         df = df[df['date'] <= end_date]
         df['wind_chill'] = df['temp'] - (df['wind_speed'] * 0.7)
-        df['precip'].fillna(0)
+        df['precip'].fillna(0, inplace=True)
         avg_temp = np.mean(df['temp'])
-        st.dataframe(df[['date', 'wind_chill', 'precip', 'temp', 'wind_speed']])
-        st.write(f'Average Temperature: {avg_temp}')
+        st.dataframe(df[['date', 'temp', 'wind_speed', 'precip', 'wind_chill']])
+        st.write(f'Average Temperature: {avg_temp: .2f}')
+
+        plt.figure(figsize=(10,6))
+        sns.lineplot(x='date', y='temp', data=df, label='Temperature (F)')
+        sns.lineplot(x='date', y='wind_chill', data=df, label='Wind Chill (F)')
+        plt.xlabel('Date')
+        plt.ylabel('Temperature (F)')
+        plt.title('3-Day Temperature vs. Wind Chill')
+        plt.legend()
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(plt.gcf())
+        plt.savefig('data/temp_plot.png')
+        plt.clf()
+
+        plt.figure(figsize=(10,6))
+        sns.barplot(x='date', y='precip', data=df)
+        plt.xlabel('Date')
+        plt.ylabel('Precipitation (mm)')
+        plt.title('3-Day Precipitation')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        st.pyplot(plt.gcf())
+        plt.savefig('data/precip_plot.png')
+        plt.clf()
 
 
     except ValueError:
