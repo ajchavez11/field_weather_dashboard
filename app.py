@@ -4,6 +4,7 @@ import streamlit as st
 import requests as r
 import json
 import pandas as pd
+import numpy as np
 
 load_dotenv()
 api_key = os.getenv("API_KEY", 'Missing_Key')
@@ -34,17 +35,33 @@ if fetch_button:
             with open(cache_path, 'r') as f:
                 data = json.load(f)
                 st.info(f'Cache file {cache_path} loaded')
-                st.write(f'Cache data for {data['city']['name']}')
-                st.success(f'Got weather data! Ready to process!')
         else:
             response = r.get(url, params=params)
             if response.status_code == 200:
                 data = response.json()
-                cache_path = 'data/cache.json'
                 with open(cache_path, 'w') as f:
                     json.dump(data, f)
             else:
                 st.error(f'API Error: {response.json().get('message', 'Unknown Error')}')
+        st.success(f'Got weather data! Ready to process!')
+
+        forecast_list = data['list']
+        df = pd.DataFrame(forecast_list)
+        df['temp'] = df['main'].apply(lambda x: x['temp'] )
+        df['wind_speed'] = df['wind'].apply(lambda x: x['speed'])
+        df['precip'] = df['main'].apply(lambda x: x.get('3h', 0) if isinstance(x, dict) else 0)
+        df['date'] = pd.to_datetime(df['dt'], unit='s')
+        df = df.drop(columns=['main', 'wind', 'rain', 'weather', 'clouds'], errors='ignore')
+        start_date = df['date'].min()
+        end_date = start_date + pd.Timedelta(days=3)
+        df = df[df['date'] <= end_date]
+        df['wind_chill'] = df['temp'] - (df['wind_speed'] * 0.7)
+        df['precip'].fillna(0)
+        avg_temp = np.mean(df['temp'])
+        st.dataframe(df[['date', 'wind_chill', 'precip', 'temp', 'wind_speed']])
+        st.write(f'Average Temperature: {avg_temp}')
+
+
     except ValueError:
         st.error('Please enter a valid latitude and longitude.')
 
