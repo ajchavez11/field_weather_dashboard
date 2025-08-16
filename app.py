@@ -54,9 +54,12 @@ if fetch_button:
         response = r.get(url, params=params)
         if response.status_code == 200:
             data = response.json()
-            with open(cache_path, 'w') as f:
-                json.dump(data, f)
-            st.info(f'New data fetched and saved to {cache_path}')
+            try:
+                with open(cache_path, 'w') as f:
+                    json.dump(data, f)
+                st.info(f'New data fetched and saved to {cache_path}')
+            except Exception as e:
+                st.error(f"New data fetched (cache not saved: {str(e)}")
         else:
             st.error(f'API Error: {response.json().get('message', 'Unknown Error')}')
         st.success(f'Got weather data! Ready to process!')
@@ -104,11 +107,14 @@ if fetch_button:
                     st.warning(alert)
         else:
             st.success("No extreme weather conditions.")
-        with open('data/alerts.txt', 'w') as f:
-            if alerts:
-                f.write('\n'.join(alerts))
-            else:
-                f.write('No alerts found.')
+        try:
+            with open('data/alerts.txt', 'w') as f:
+                if alerts:
+                    f.write('\n'.join(alerts))
+                else:
+                    f.write('No alerts found.')
+        except Exception as e:
+            st.warning(f"Alerts not saved to file: {str(e)}")
 
         # descriptive graphs displaying various data (usually Time and Date vs *variable*)
         plt.figure(figsize=(10,6))

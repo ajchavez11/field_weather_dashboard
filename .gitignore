@@ -1,1 +1,8 @@
 .env
+data/cache.json
+data/alerts.txt
+data/temp_plot.png
+data/precip_plot.png
+__pycache__/
+*.pyc
+.venv/
