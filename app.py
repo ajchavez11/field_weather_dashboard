@@ -51,20 +51,14 @@ if fetch_button:
         }
 
         cache_path = 'data/cache.json'
-        os.remove(cache_path)
-
-        if os.path.exists(cache_path):
-            with open(cache_path, 'r') as f:
-                data = json.load(f)
-                st.info(f'Cache file {cache_path} loaded')
+        response = r.get(url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            with open(cache_path, 'w') as f:
+                json.dump(data, f)
+            st.info(f'New data fetched and saved to {cache_path}')
         else:
-            response = r.get(url, params=params)
-            if response.status_code == 200:
-                data = response.json()
-                with open(cache_path, 'w') as f:
-                    json.dump(data, f)
-            else:
-                st.error(f'API Error: {response.json().get('message', 'Unknown Error')}')
+            st.error(f'API Error: {response.json().get('message', 'Unknown Error')}')
         st.success(f'Got weather data! Ready to process!')
 
         forecast_list = data['list']
@@ -115,7 +109,6 @@ if fetch_button:
                 f.write('\n'.join(alerts))
             else:
                 f.write('No alerts found.')
-
 
         # descriptive graphs displaying various data (usually Time and Date vs *variable*)
         plt.figure(figsize=(10,6))
