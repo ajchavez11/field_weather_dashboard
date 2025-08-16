@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 THRESHOLDS = {
-    'high_temp': 20.0,
-    'low_temp': -0.0,
-    'high_wind': 10.0,
-    'high_precip': 5.0
+    'high_temp': 30,
+    'low_temp': -5,
+    'high_wind': 10,
+    'high_precip': 5
 }
 
 load_dotenv()
@@ -21,10 +21,21 @@ api_key = os.getenv("API_KEY", 'Missing_Key')
 st.set_page_config(layout="wide", page_icon='🌤️')
 st.title('Welcome to the Adventure Planning Dashboard!')
 
-st.sidebar.header('Enter a Location')
+st.sidebar.header('Enter a Latitude and Longitude')
 lat = st.sidebar.text_input(value='', label='Latitude')
 lon = st.sidebar.text_input(value='', label='Longitude')
-fetch_button = st.sidebar.button('Fetch Weather')
+
+st.sidebar.header('Alert Settings')
+high_temp_slider = st.sidebar.slider(label='High Temp Threshold (C)', min_value=20, max_value=40, value=30)
+low_temp_slider = st.sidebar.slider(label='Low Temp Threshold (C)', min_value=-20, max_value=0, value=-5)
+high_wind_slider = st.sidebar.slider(label='High Wind Speed (m/s)', min_value=20, max_value=100, value=50)
+high_precip_slider = st.sidebar.slider(label='High Precipitation (mm)', min_value=0, max_value=10, value=3)
+THRESHOLDS['high_temp'] = high_temp_slider
+THRESHOLDS['low_temp'] = low_temp_slider
+THRESHOLDS['high_wind'] = high_wind_slider
+THRESHOLDS['high_precip'] = high_precip_slider
+
+fetch_button = st.sidebar.button('Fetch Weather', icon='🌤️', width='content')
 
 if fetch_button:
     try:
@@ -40,8 +51,8 @@ if fetch_button:
         }
 
         cache_path = 'data/cache.json'
-
         os.remove(cache_path)
+
         if os.path.exists(cache_path):
             with open(cache_path, 'r') as f:
                 data = json.load(f)
@@ -60,7 +71,16 @@ if fetch_button:
         df = pd.DataFrame(forecast_list)
         df['temp'] = df['main'].apply(lambda x: x['temp'] )
         df['wind_speed'] = df['wind'].apply(lambda x: x['speed'])
-        df['precip'] = df['rain'].apply(lambda x: x.get('3h', 0) if isinstance(x, dict) else 0)
+
+        def get_precipitation(weather_data):
+            precip = 0
+            if isinstance(weather_data.get('rain'), dict):
+                precip += weather_data.get('3h', 0)
+            if isinstance(weather_data.get('snow'), dict):
+                precip += weather_data.get('3h', 0)
+            return precip
+        df['precip'] = df.apply(lambda x: get_precipitation(x), axis=1)
+
         df['date'] = pd.to_datetime(df['dt'], unit='s')
         df = df.drop(columns=['main', 'wind', 'rain', 'weather', 'clouds'], errors='ignore')
         start_date = df['date'].min()
